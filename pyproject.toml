@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "trade-montecarlo"
+version = "0.1.0"
+description = "Monte Carlo simulation for the trade-suite: price-process models, correlated paths, block bootstrap, option pricers, VaR/CVaR analytics"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "crieck2010" }]
+keywords = ["trading", "monte-carlo", "simulation", "var", "options", "finance"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Office/Business :: Financial",
+]
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[project.scripts]
+trade-montecarlo = "trade_montecarlo.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/crieck2010/trade-montecarlo"
+Repository = "https://github.com/crieck2010/trade-montecarlo"
+
+[tool.setuptools.packages.find]
+where = ["src"]
