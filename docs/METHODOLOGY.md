@@ -11,6 +11,21 @@ lognormal factor. The drift carries the compensator −λκ with
 κ = E[jump multiplier − 1] = exp(jump_mean + jump_vol²/2) − 1, so the
 mean growth rate stays μ. Jumps add the fat tails GBM misses.
 
+**Kou double-exponential jump-diffusion.** Like Merton, but each jump's
+log-size is asymmetric double-exponential: up-jumps Exp(η₁) with
+probability p, down-jumps −Exp(η₂) otherwise. The compensator is
+κ = p·η₁/(η₁−1) + (1−p)·η₂/(η₂+1) − 1 (needs η₁ > 1), so E[S] still
+grows at μ. Reproduces the equity skew — frequent small up-moves, rare
+violent down-moves — that Merton's symmetric lognormal jumps cannot.
+With `lam=0` it is *exactly* GBM (tested). Antithetic pairing mirrors
+diffusion shocks only; jump times/sizes are shared within a pair.
+
+**Jump calibration.** Bipower variation (π/2)·mean(|r_t·r_{t−1}|) → σ²dt
+estimates the diffusive σ robustly (jumps wash out of the adjacent
+product). Truncation then flags returns with |r| > 4σ√dt as jumps and
+reads (λ, jump_mean, jump_vol) off them. Scenario-grade, not
+trading-grade: small jumps hide, so λ is a lower bound.
+
 **GARCH(1,1).** σ²_t = ω + α·r²_{t−1} + β·σ²_{t−1}, r_t = σ_t·z_t, with
 z_t standard normal or Student-t. Captures volatility clustering:
 large moves beget large moves. Parameters are **per simulation step** —
@@ -35,10 +50,19 @@ accuracy with ~half the paths.
 
 Risk-neutral valuation: simulate under μ = r, discount payoffs at r.
 European prices are validated against Black-Scholes closed form in the
-test suite (independent implementation). Asian (arithmetic average) and
-up-and-out barrier options have no closed form — that is precisely where
-Monte Carlo earns its keep. Every pricer reports a standard error:
-price ± 1.96·SE is the honest 95% interval.
+test suite (independent implementation). Digitals and asset-or-nothing
+calls cross-check against their N(d₂)/N(d₁) closed forms; geometric
+Asians against Kemna–Vorst; American puts against an independent
+Cox-Ross-Rubinstein binomial tree; barrier in+out parity (sums to the
+European on identical paths) is asserted to 1e-9. Arithmetic Asian,
+lookback, and barrier options have no closed form under jumps — that
+is precisely where Monte Carlo earns its keep. Every pricer reports a
+standard error: price ± 1.96·SE is the honest 95% interval.
+
+Any pricer takes `paths=` (price on any pre-simulated path set —
+GARCH, bootstrap, …) or `model="jump"/"kou"` with `model_kw` to price
+under jump-diffusion with risk-neutralized drift (physical jump law
+kept; see docs/EXOTICS.md for the caveat).
 
 ## Analytics conventions
 

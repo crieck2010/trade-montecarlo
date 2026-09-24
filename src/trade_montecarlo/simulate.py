@@ -10,6 +10,7 @@ from .processes import (
     simulate_garch,
     simulate_gbm,
     simulate_jump,
+    simulate_kou,
     simulate_ou,
 )
 from .rng import RandomStream
@@ -17,7 +18,7 @@ from .rng import RandomStream
 
 @dataclass
 class SimConfig:
-    model: str = "gbm"  # gbm | jump | garch | ou
+    model: str = "gbm"  # gbm | jump | kou | garch | ou
     n_paths: int = 10_000
     n_steps: int = 252
     T: float = 1.0  # years; dt = T / n_steps
@@ -26,10 +27,14 @@ class SimConfig:
     sigma: float = 0.20  # vol (annualized; GARCH ignores this)
     seed: int = 7
     antithetic: bool = True
-    # jump-diffusion
+    # jump-diffusion (Merton "jump" and Kou "kou")
     lam: float = 0.5
     jump_mean: float = -0.05
     jump_vol: float = 0.10
+    # Kou double-exponential jump sizes
+    p_up: float = 0.4  # P(jump is upward)
+    eta1: float = 25.0  # up-jump Exp rate (mean up jump = 1/eta1)
+    eta2: float = 20.0  # down-jump Exp rate
     # GARCH(1,1)
     omega: float = 2e-6
     alpha: float = 0.08
@@ -69,6 +74,10 @@ def run_simulation(config: SimConfig | None = None) -> SimulationResult:
         paths = simulate_jump(stream, cfg.s0, cfg.n_paths, cfg.n_steps, dt,
                               cfg.mu, cfg.sigma, cfg.lam, cfg.jump_mean,
                               cfg.jump_vol, **kw)
+    elif cfg.model == "kou":
+        paths = simulate_kou(stream, cfg.s0, cfg.n_paths, cfg.n_steps, dt,
+                             cfg.mu, cfg.sigma, cfg.lam, cfg.p_up,
+                             cfg.eta1, cfg.eta2, **kw)
     elif cfg.model == "garch":
         # GARCH(1,1) parameters are per simulation step: dt is 1 step.
         paths = simulate_garch(stream, cfg.s0, cfg.n_paths, cfg.n_steps, 1.0,

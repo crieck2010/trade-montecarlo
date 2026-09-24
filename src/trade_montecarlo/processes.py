@@ -1,4 +1,5 @@
-"""Price-process models: GBM, Merton jump-diffusion, GARCH(1,1), OU.
+"""Price-process models: GBM, Merton jump-diffusion, Kou jump-diffusion,
+GARCH(1,1), OU.
 
 Each simulator takes a ``RandomStream`` and returns a list of paths; every
 path is a list of ``n_steps + 1`` prices starting at ``s0``.  Same seed →
@@ -98,6 +99,80 @@ def simulate_jump(stream: RandomStream, s0: float, n_paths: int, n_steps: int,
                 s *= math.exp(drift + vol * sign * z)
                 for jz in js:
                     s *= math.exp(jump_mean + jump_vol * sign * jz)
+                path.append(s)
+            paths.append(path)
+    return paths
+
+
+def _kou_kappa(p_up: float, eta1: float, eta2: float) -> float:
+    """E[jump multiplier − 1] for double-exponential jumps.
+
+    E[e^Y] = p·η₁/(η₁−1) + (1−p)·η₂/(η₂+1), so
+    κ = p·η₁/(η₁−1) + (1−p)·η₂/(η₂+1) − 1.  Needs η₁ > 1.
+    """
+    if eta1 <= 1.0:
+        raise ValueError("eta1 must exceed 1 for a finite E[e^Y]")
+    return (p_up * eta1 / (eta1 - 1.0)
+            + (1.0 - p_up) * eta2 / (eta2 + 1.0) - 1.0)
+
+
+def _kou_jump(stream: RandomStream, p_up: float, eta1: float,
+              eta2: float) -> float:
+    """One double-exponential jump in log-price space.
+
+    With prob p_up: Y = +Exp(η₁); else Y = −Exp(η₂).  Uniforms are
+    clamped away from 0/1 so the log never blows up.
+    """
+    u = min(max(stream.uniform(), 1e-12), 1.0 - 1e-12)
+    if stream.uniform() < p_up:
+        return -math.log(u) / eta1
+    return math.log(u) / eta2
+
+
+def simulate_kou(stream: RandomStream, s0: float, n_paths: int, n_steps: int,
+                 dt: float, mu: float, sigma: float, lam: float,
+                 p_up: float = 0.4, eta1: float = 25.0, eta2: float = 20.0,
+                 antithetic: bool = False) -> list[list[float]]:
+    """Kou (2002) double-exponential jump-diffusion.
+
+    Jumps arrive as a Poisson(λ) process; each jump's log-size is
+    asymmetric double-exponential: up-jumps Exp(η₁) with prob ``p_up``,
+    down-jumps −Exp(η₂) otherwise.  Unlike Merton's symmetric lognormal
+    jumps, Kou reproduces the equity skew — frequent small up-moves,
+    rare violent down-moves — and the volatility smirk.
+
+    The drift carries the compensator −λ·κ (see :func:`_kou_kappa`) so
+    E[S] still grows at μ.  With ``lam=0`` this is *exactly* GBM — jump
+    draws are skipped, so the normal sequence aligns.
+
+    Antithetic pairing mirrors the diffusion shocks; the jump *times and
+    sizes* are shared within a pair (mirroring an asymmetric jump law
+    would change its distribution).  Each path stays unbiased.
+    """
+    if lam < 0:
+        raise ValueError("lam must be >= 0")
+    if not 0.0 <= p_up <= 1.0:
+        raise ValueError("p_up must be in [0, 1]")
+    if eta1 <= 1.0 or eta2 <= 0.0:
+        raise ValueError("need eta1 > 1 and eta2 > 0")
+    kappa = _kou_kappa(p_up, eta1, eta2)
+    drift = (mu - 0.5 * sigma ** 2 - lam * kappa) * dt
+    vol = sigma * math.sqrt(dt)
+    n_half, anti = _pairs(n_paths, antithetic)
+    paths = []
+    for _ in range(n_half):
+        zs = [stream.normal() for _ in range(n_steps)]
+        jumps: list[list[float]] = [[] for _ in range(n_steps)]
+        if lam > 0:
+            for i in range(n_steps):
+                jumps[i] = [_kou_jump(stream, p_up, eta1, eta2)
+                            for _ in range(_poisson(stream, lam * dt))]
+        for sign in (1.0, -1.0) if anti else (1.0,):
+            s, path = s0, [s0]
+            for z, js in zip(zs, jumps):
+                s *= math.exp(drift + vol * sign * z)
+                for y in js:
+                    s *= math.exp(y)
                 path.append(s)
             paths.append(path)
     return paths

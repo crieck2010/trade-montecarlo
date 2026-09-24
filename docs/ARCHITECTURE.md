@@ -7,7 +7,8 @@ CLI (cli.py) ──thin──▶ session API (simulate.py)
                                 │
 session API ──▶ processes.py (model zoo) ──▶ rng.py (RandomStream)
             ├─▶ resample.py (block bootstrap) ─▶ rng.py
-            ├─▶ options.py (MC pricers) ──▶ processes.simulate_gbm
+            ├─▶ options.py (MC pricers) ──▶ processes (gbm/jump/kou) or caller paths
+            ├─▶ calibrate.py (bipower vol + truncation jump fit; pure functions)
             ├─▶ analytics.py (pure functions over paths / P&L lists)
             └─▶ adapters.py (sibling bridges; imports lazy)
 licensing.py stands alone (license-key + update-check hooks).
@@ -45,6 +46,14 @@ without either module importing the other.
 cross-checked against an independent Black-Scholes implementation that
 lives *in the test file*, so the package never depends on
 trade-data-options at runtime while still proving the pricer is correct.
+The same pattern covers digitals (N(d₂)), asset-or-nothing (N(d₁)),
+geometric Asians (Kemna–Vorst), American LSM (independent CRR binomial
+tree in the test file), and barrier in+out parity on identical paths.
+
+**Pricers are process-agnostic.** Every pricer accepts `paths=` — any
+pre-simulated path set — or `model="jump"/"kou"` to simulate under
+jump-diffusion internally. Pricing logic never assumes GBM; the model
+is a parameter, not a coupling.
 
 ## Scaling
 
