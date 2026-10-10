@@ -1,3 +1,7 @@
+> [!IMPORTANT]
+> **Consolidated into [TradeSuite](https://github.com/crieck2010/trade-suite)**  
+> This engine has been consolidated into the unified [TradeSuite monorepo](https://github.com/crieck2010/trade-suite). Active development, bug fixes, releases, and unified testing now live in `trade-suite`. This repository is preserved as an archive.
+
 # trade-montecarlo
 
 Monte Carlo simulation for the trade-suite: seeded price-process models (GBM, Merton and Kou jump-diffusion, GARCH(1,1), Ornstein-Uhlenbeck), jump calibration, correlated multi-asset paths, circular block bootstrap, Monte Carlo exotic option pricers (European, Asian, barrier, digital, lookback, American LSM), and distribution analytics (VaR/CVaR, drawdowns, barrier hits).
